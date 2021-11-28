@@ -44,18 +44,13 @@ void delMessage(int* current_socket, char buffer[]);
 
 int main(int argc, char** argv)
 {
-   PORT = atoi(argv[1]);
-   DIRECTORY = argv[2];
-   socklen_t addrlen;
-   struct sockaddr_in address;
-   int reuseValue = 1;
-   
-   struct stat st = {0};
-   if (stat(DIRECTORY, &st) == -1) {
-      mkdir(DIRECTORY, 0777);
-   }
-
-    struct stat st = { 0 };
+    PORT = atoi(argv[1]);
+    DIRECTORY = argv[2];
+    socklen_t addrlen;
+    struct sockaddr_in address;
+    int reuseValue = 1;
+    
+    struct stat st = {0};
     if (stat(DIRECTORY, &st) == -1) {
         mkdir(DIRECTORY, 0777);
     }
@@ -361,7 +356,7 @@ void startLdapServer()
 ////////////////////////////////////////////////////////////////////////////
 // HANDLES CLIENT MESSAGES
 void mailHandler(int* current_socket, char buffer[]) {
-   char* bufcpy = calloc(sizeof(char)*BUF);
+   char* bufcpy = calloc(BUF,sizeof(char));
    strcpy(bufcpy, buffer);
    char* pch = strtok(bufcpy, "\n");
    
