@@ -136,7 +136,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "ldap_init failed\n");
         return EXIT_FAILURE;
     }
-    printf("connected to LDAP printf("Username Eingabe: %s", rawLdapUser);%s\n", ldapUri);
+    printf("connected to LDAP server %s\n", ldapUri);
 
     ////////////////////////////////////////////////////////////////////////////
     // set verison options
@@ -370,6 +370,10 @@ void loginUser(int* current_socket, char buffer[]){
    strcpy(rawLdapUser, strtok(buffer, "\n"));
    sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
    strcpy(ldapBindPassword, strtok(buffer, "\n"));
+
+   printf("rawLdapUser: %s", rawLdapUser);
+   printf("ldapBindUser: %s", ldapBindUser);
+   printf("ldapBindPassword: %s", ldapBindPassword);
 
    BerValue bindCredentials;
    bindCredentials.bv_val = (char *)ldapBindPassword;
