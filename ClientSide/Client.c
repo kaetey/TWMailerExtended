@@ -124,7 +124,7 @@ int main(int argc, char** argv)
                 --size;
                 buffer[size] = 0;
             }
-            isQuit = strcmp(buffer, "quit") == 0;
+            //isQuit = strcmp(buffer, "quit") == 0;
 
 <<<<<<< HEAD
          //////////////////////////////////////////////////////////////////////
@@ -169,7 +169,9 @@ int main(int argc, char** argv)
                 delMessage(create_socket);
             }
             else if (strcmp(buffer, "QUIT") == 0) {
-                isQuit = 1;
+                //isQuit = 1;
+                close(create_socket);
+                exit(EXIT_SUCCESS);
             }
             else {
                 printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
