@@ -17,6 +17,7 @@ int PORT = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 
+void loginUser();
 void sendMessage(int create_socket);
 void listMessage(int create_socket);
 void readMessage(int create_socket);
@@ -91,10 +92,11 @@ int main(int argc, char **argv)
       printf("%s", buffer); // ignore error
    }
 
-	printf("SEND: send a message from client to server.\n"
-		"LIST: list all messages from a specific user.\n"
-		"READ: read a specific message from a user.\n"
-		"DEL: delete a specific message from a user.\n"
+	printf("LOGIN: authenticate user.\n"
+      //"SEND: send a message from client to server.\n"
+		//"LIST: list all messages from a specific user.\n"
+		//"READ: read a specific message from a user.\n"
+		//"DEL: delete a specific message from a user.\n"
 		"QUIT: disconnect.\n");
 
    do
@@ -121,7 +123,9 @@ int main(int argc, char **argv)
          // send will fail if connection is closed, but does not set
          // the error of send, but still the count of bytes sent
          
-         if (strcmp(buffer, "SEND") == 0) {
+         if(strcmp(buffer, "LOGIN") == 0){
+            loginUser();
+         } else if (strcmp(buffer, "SEND") == 0) {
          	sendMessage(create_socket);
          } else if (strcmp(buffer, "LIST") == 0) {
          	listMessage(create_socket);
@@ -176,6 +180,28 @@ int main(int argc, char **argv)
    return EXIT_SUCCESS;
 }
 
+void loginUser(){
+   char* message = malloc(sizeof(char)*BUF);
+   char* username = malloc(sizeof(char)*9);
+   char* password = malloc(sizeof(char)*BUF);
+
+   getInput(9, "Username: ", username);
+   getInput(BUF, "Password: ", password);
+
+   strcat(message, "LOGIN\n");
+   strcat(message, username);
+   strcat(message, "\n");
+   strcat(message, password);
+   strcat(message, "\n\0");
+
+   if(send(create_socket, message, strlen(message), 0) == -1) {
+      perror("LOGIN failed to send");
+      exit(EXIT_FAILURE);
+   } 
+   free(username);
+   free(password);
+   free(message);
+}
 
 void sendMessage(int create_socket) {
    char* message = malloc(sizeof(char)*BUF);
