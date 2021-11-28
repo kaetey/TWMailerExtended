@@ -100,7 +100,7 @@ int main(int argc, char** argv)
 		"QUIT: disconnect.\n");
 
     do
-    {
+    c
         printf("Enter command: ");
         if (fgets(buffer, BUF, stdin) != NULL)
         {
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
             // the error of send, but still the count of bytes sent
             
             if(strcmp(buffer, "LOGIN") == 0){
-                loginUser();
+                loginUser(create_socket);
             } else if (strcmp(buffer, "SEND") == 0) {
                 sendMessage(create_socket);
             } else if (strcmp(buffer, "LIST") == 0) {
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
             } else if (strcmp(buffer, "QUIT") == 0) {
                 //isQuit = 1;
                 close(create_socket);
-                exit(EXIT_SUCCESS):
+                exit(EXIT_SUCCESS);
             } else {
                 printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
                 continue;
@@ -182,8 +182,8 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
 }
 
-void loginUser(){
-   char* message = malloc(sizeof(char)*BUF);
+void loginUser(int create_socket){
+   char* message = calloc(sizeof(char)*BUF);
    char* username = malloc(sizeof(char)*9);
    char* password = malloc(sizeof(char)*BUF);
 
