@@ -31,7 +31,6 @@ int loginError = 0;
 
 void* clientCommunication(void* data);
 void signalHandler(int sig);
-void startLdapServer();
 
 void mailHandler(int* current_socket, char buffer[]);
 void loginUser(int* current_socket, char buffer[]);
@@ -120,7 +119,51 @@ int main(int argc, char** argv)
         perror("listen error");
         return EXIT_FAILURE;
     }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    // LDAP config
+    // anonymous bind with user and pw empty
+    const char *ldapUri = "ldap://ldap.technikum-wien.at:389";
+    const int ldapVersion = LDAP_VERSION3;
 
+    int rc = 0; // return code
+
+    ////////////////////////////////////////////////////////////////////////////
+    // setup LDAP connection
+    rc = ldap_initialize(&ldapHandle, ldapUri);
+    if (rc != LDAP_SUCCESS)
+    {
+        fprintf(stderr, "ldap_init failed\n");
+        return EXIT_FAILURE;
+    }
+    printf("connected to LDAP printf("Username Eingabe: %s", rawLdapUser);%s\n", ldapUri);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // set verison options
+    rc = ldap_set_option(
+        ldapHandle,
+        LDAP_OPT_PROTOCOL_VERSION, // OPTION
+        &ldapVersion);             // IN-Value
+    if (rc != LDAP_OPT_SUCCESS)
+    {
+        fprintf(stderr, "ldap_set_option(PROTOCOL_VERSION): %s\n", ldap_err2string(rc));
+        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+        return EXIT_FAILURE;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // start connection secure (initialize TLS)
+    rc = ldap_start_tls_s(
+        ldapHandle,
+        NULL,
+        NULL);
+    if (rc != LDAP_SUCCESS)
+    {
+        fprintf(stderr, "ldap_start_tls_s(): %s\n", ldap_err2string(rc));
+        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+        return EXIT_FAILURE;
+    }
+    
     while (!abortRequested)
     {
         /////////////////////////////////////////////////////////////////////////
@@ -146,15 +189,14 @@ int main(int argc, char** argv)
             break;
         }
 
-         /////////////////////////////////////////////////////////////////////////
-         // START CLIENT
-         // ignore printf error handling
-         printf("Client connected from %s:%d...\n",
-               inet_ntoa(cliaddress.sin_addr),
-               ntohs(cliaddress.sin_port));
-         startLdapServer();
-         clientCommunication(&new_socket); // returnValue can be ignored
-         new_socket = -1;
+        /////////////////////////////////////////////////////////////////////////
+        // START CLIENT
+        // ignore printf error handling
+        printf("Client connected from %s:%d...\n",
+                inet_ntoa(cliaddress.sin_addr),
+                ntohs(cliaddress.sin_port));
+        clientCommunication(&new_socket); // returnValue can be ignored
+        new_socket = -1;
       }
 
     // frees the descriptor
@@ -171,6 +213,7 @@ int main(int argc, char** argv)
         create_socket = -1;
     }
 
+    ldap_unbind_ext_s(ldapHandle, NULL, NULL);
     return EXIT_SUCCESS;
 }
 
@@ -226,24 +269,6 @@ void* clientCommunication(void* data)
         buffer[size] = '\0';
         printf("Message received: %s\n", buffer); // ignore error
 
-   // closes/frees the descriptor if not already
-   if (*current_socket != -1)
-   {
-      if (shutdown(*current_socket, SHUT_RDWR) == -1)
-      {
-         perror("shutdown new_socket");
-      }
-      if (close(*current_socket) == -1)
-      {
-         perror("close new_socket");
-      }
-      *current_socket = -1;
-
-   }
-
-   ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-
-   return NULL;
         mailHandler(current_socket, buffer);
 
     } while (strcmp(buffer, "quit") != 0 && !abortRequested);
@@ -306,53 +331,6 @@ void signalHandler(int sig)
     }
 }
 
-void startLdapServer()
-{
-   ////////////////////////////////////////////////////////////////////////////
-   // LDAP config
-   // anonymous bind with user and pw empty
-   const char *ldapUri = "ldap://ldap.technikum-wien.at:389";
-   const int ldapVersion = LDAP_VERSION3;
-
-   int rc = 0; // return code
-
-   ////////////////////////////////////////////////////////////////////////////
-   // setup LDAP connection
-   rc = ldap_initialize(&ldapHandle, ldapUri);
-   if (rc != LDAP_SUCCESS)
-   {
-      fprintf(stderr, "ldap_init failed\n");
-      return EXIT_FAILURE;
-   }
-   printf("connected to LDAP server %s\n", ldapUri);
-
-   ////////////////////////////////////////////////////////////////////////////
-   // set verison options
-   rc = ldap_set_option(
-       ldapHandle,
-       LDAP_OPT_PROTOCOL_VERSION, // OPTION
-       &ldapVersion);             // IN-Value
-   if (rc != LDAP_OPT_SUCCESS)
-   {
-      fprintf(stderr, "ldap_set_option(PROTOCOL_VERSION): %s\n", ldap_err2string(rc));
-      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-      return EXIT_FAILURE;
-   }
-
-   ////////////////////////////////////////////////////////////////////////////
-   // start connection secure (initialize TLS)
-   rc = ldap_start_tls_s(
-       ldapHandle,
-       NULL,
-       NULL);
-   if (rc != LDAP_SUCCESS)
-   {
-      fprintf(stderr, "ldap_start_tls_s(): %s\n", ldap_err2string(rc));
-      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-      return EXIT_FAILURE;
-   }
-}
-
 ////////////////////////////////////////////////////////////////////////////
 // HANDLES CLIENT MESSAGES
 void mailHandler(int* current_socket, char buffer[]) {
@@ -379,7 +357,7 @@ void mailHandler(int* current_socket, char buffer[]) {
    free(bufcpy);
 }
 
-void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(cliaddress.sin_addr)
+void loginUser(int* current_socket, char buffer[]){
    ////////////////////////////////////////////////////////////////////////////
    // bind credentials
 
@@ -397,37 +375,35 @@ void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(clia
    bindCredentials.bv_val = (char *)ldapBindPassword;
    bindCredentials.bv_len = strlen(ldapBindPassword);
    BerValue *servercredp; // server's credentials
-  int rc = ldap_sasl_bind_s(
-       ldapHandle,
-       ldapBindUser,
-       LDAP_SASL_SIMPLE,
-       &bindCredentials,
-       NULL,
-       NULL,
-       &servercredp);
-   if (rc != LDAP_SUCCESS)
-   {
-      loginError++;
-      fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
-      if(loginError == 3){
-         //add user to blacklist
-         printf("\nIP: %s added to the blacklist.", inet_ntoa(cliaddress.sin_addr));
-         if (send(*current_socket, "Invalid Credential. Please try again in 1 minute.", 50, 0) == -1)
-         {
-            perror("Send Error \n");
-         }
-         loginError = 0;
-      } else{
-         if (send(*current_socket, "Invalid Credential", 19, 0) == -1)
-         {
-            perror("Send Error \n");
-         }
-      }
-      ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-      return EXIT_FAILURE;
+    int rc = ldap_sasl_bind_s(
+        ldapHandle,
+        ldapBindUser,
+        LDAP_SASL_SIMPLE,
+        &bindCredentials,
+        NULL,
+        NULL,
+        &servercredp);
+    if (rc != LDAP_SUCCESS)
+    {
+        loginError++;
+        fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
+        if(loginError == 3){
+            //add user to blacklist
+            printf("\nIP: %s added to the blacklist.", inet_ntoa(cliaddress.sin_addr));
+            if (send(*current_socket, "Invalid Credential. Please try again in 1 minute.", 50, 0) == -1)
+            {
+                perror("Send Error \n");
+            }
+            loginError = 0;
+        } else{
+            if (send(*current_socket, "Invalid Credential", 19, 0) == -1)
+            {
+                perror("Send Error \n");
+            }
+        }
    }
    
-   if (send(*currentSocket, "OK", 3, 0) == -1)
+   if (send(*current_socket, "OK", 3, 0) == -1)
    {
       perror("send failed");
    }
@@ -488,6 +464,7 @@ void sendMessage(int* current_socket, char buffer[]) {
     }
 
 }
+
 void listMessage(int* current_socket, char buffer[]) {
     char* message = calloc(BUF, sizeof(char));
     char temp[BUF];

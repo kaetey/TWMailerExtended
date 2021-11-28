@@ -99,8 +99,8 @@ int main(int argc, char** argv)
 		//"DEL: delete a specific message from a user.\n"
 		"QUIT: disconnect.\n");
 
-    do
-    c
+    do{
+
         printf("Enter command: ");
         if (fgets(buffer, BUF, stdin) != NULL)
         {
@@ -183,12 +183,12 @@ int main(int argc, char** argv)
 }
 
 void loginUser(int create_socket){
-   char* message = calloc(sizeof(char)*BUF);
-   char* username = calloc(sizeof(char)*9);
-   char* password = calloc(sizeof(char)*BUF);
+   char* message = calloc(BUF, sizeof(char));
+   char* username = calloc(10, sizeof(char));
+   char* password = calloc(30, sizeof(char));
 
-   getInput(9, "Username: ", username);
-   getInput(BUF, "Password: ", password);
+   getInput(10, "Username: ", username);
+   getInput(30, "Password: ", password);
 
    strcat(message, "LOGIN\n");
    strcat(message, username);
@@ -207,13 +207,13 @@ void loginUser(int create_socket){
 
 void sendMessage(int create_socket) {
     char* message = calloc(BUF, sizeof(char));
-    char* sender = calloc(9, sizeof(char));
-    char* receiver = calloc(9, sizeof(char));
+    char* sender = calloc(10, sizeof(char));
+    char* receiver = calloc(10, sizeof(char));
     char* subject = calloc(81, sizeof(char));
     char* content = calloc(BUF, sizeof(char));
 
-    getInput(9, "Enter the username of the sender: ", sender);
-    getInput(9, "Enter the username of the receiver: ", receiver);
+    getInput(10, "Enter the username of the sender: ", sender);
+    getInput(10, "Enter the username of the receiver: ", receiver);
     getInput(81, "Enter the subject of the message: ", subject);
     getLines(BUF, "Enter the content of the message: ", content);
 
@@ -241,9 +241,9 @@ void sendMessage(int create_socket) {
 
 void listMessage(int create_socket) {
     char* message = calloc(19, sizeof(char));
-    char* username = calloc(9, sizeof(char));
+    char* username = calloc(10, sizeof(char));
 
-    getInput(9, "From which user do you want to list all messages? Enter the username: ", username);
+    getInput(10, "From which user do you want to list all messages? Enter the username: ", username);
 
     strcat(message, "LIST\n");
     strcat(message, username);
@@ -261,10 +261,10 @@ void listMessage(int create_socket) {
 
 void readMessage(int create_socket) {
     char* message = calloc(19, sizeof(char));
-    char* username = calloc(9, sizeof(char));
+    char* username = calloc(10, sizeof(char));
     char* msgNumber = calloc(4, sizeof(char));
 
-    getInput(9, "From which user do you want to read a message? Enter the username: ", username);
+    getInput(10, "From which user do you want to read a message? Enter the username: ", username);
     getInput(4, "Which Message do you want to read? Enter the message number: ", msgNumber);
 
     strcat(message, "READ\n");
@@ -284,10 +284,10 @@ void readMessage(int create_socket) {
 
 void delMessage(int create_socket) {
     char* message = calloc(19, sizeof(char));
-    char* username = calloc(9, sizeof(char));
+    char* username = calloc(10, sizeof(char));
     char* msgNumber = calloc(4, sizeof(char));
 
-    getInput(9, "From which user do you want to delete a message? Enter the username: ", username);
+    getInput(10, "From which user do you want to delete a message? Enter the username: ", username);
     getInput(4, "Which Message do you want to delete? Enter the message number: ", msgNumber);
 
     strcat(message, "DEL\n");
