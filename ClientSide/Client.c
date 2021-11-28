@@ -184,8 +184,8 @@ int main(int argc, char** argv)
 
 void loginUser(int create_socket){
    char* message = calloc(sizeof(char)*BUF);
-   char* username = malloc(sizeof(char)*9);
-   char* password = malloc(sizeof(char)*BUF);
+   char* username = calloc(sizeof(char)*9);
+   char* password = calloc(sizeof(char)*BUF);
 
    getInput(9, "Username: ", username);
    getInput(BUF, "Password: ", password);

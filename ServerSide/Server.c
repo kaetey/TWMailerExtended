@@ -394,7 +394,7 @@ void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(clia
    char rawLdapUser[128];
    char ldapBindUser[256];
    char ldapBindPassword[256];
-   strcpy(rawLdapUser, strtok(buffer, "\n"););
+   strcpy(rawLdapUser, strtok(buffer, "\n"));
    sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
    strcpy(ldapBindPassword, strtok(buffer, "\n"));
 
@@ -402,7 +402,7 @@ void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(clia
    bindCredentials.bv_val = (char *)ldapBindPassword;
    bindCredentials.bv_len = strlen(ldapBindPassword);
    BerValue *servercredp; // server's credentials
-   rc = ldap_sasl_bind_s(
+  int rc = ldap_sasl_bind_s(
        ldapHandle,
        ldapBindUser,
        LDAP_SASL_SIMPLE,
@@ -423,7 +423,7 @@ void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(clia
          }
          loginError = 0;
       } else{
-         if (send(*currentSocket, "Invalid Credential", 19, 0) == -1)
+         if (send(*current_socket, "Invalid Credential", 19, 0) == -1)
          {
             perror("Send Error \n");
          }
