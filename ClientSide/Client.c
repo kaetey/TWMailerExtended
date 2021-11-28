@@ -92,20 +92,12 @@ int main(int argc, char** argv)
         printf("%s", buffer); // ignore error
     }
 
-<<<<<<< HEAD
 	printf("LOGIN: authenticate user.\n"
-      //"SEND: send a message from client to server.\n"
-		//"LIST: list all messages from a specific user.\n"
+        //"SEND: send a message from client to server.\n"
+	    //"LIST: list all messages from a specific user.\n"
 		//"READ: read a specific message from a user.\n"
 		//"DEL: delete a specific message from a user.\n"
 		"QUIT: disconnect.\n");
-=======
-    printf("SEND: send a message from client to server.\n"
-        "LIST: list all messages from a specific user.\n"
-        "READ: read a specific message from a user.\n"
-        "DEL: delete a specific message from a user.\n"
-        "QUIT: disconnect.\n");
->>>>>>> 50f99ebe0492e7c529f756c0be17e83067682d6b
 
     do
     {

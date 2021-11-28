@@ -44,7 +44,6 @@ void delMessage(int* current_socket, char buffer[]);
 
 int main(int argc, char** argv)
 {
-<<<<<<< HEAD
    PORT = atoi(argv[1]);
    DIRECTORY = argv[2];
    socklen_t addrlen;
@@ -55,13 +54,6 @@ int main(int argc, char** argv)
    if (stat(DIRECTORY, &st) == -1) {
       mkdir(DIRECTORY, 0777);
    }
-=======
-    PORT = atoi(argv[1]);
-    DIRECTORY = argv[2];
-    socklen_t addrlen;
-    struct sockaddr_in address, cliaddress;
-    int reuseValue = 1;
->>>>>>> 50f99ebe0492e7c529f756c0be17e83067682d6b
 
     struct stat st = { 0 };
     if (stat(DIRECTORY, &st) == -1) {
@@ -369,8 +361,7 @@ void startLdapServer()
 ////////////////////////////////////////////////////////////////////////////
 // HANDLES CLIENT MESSAGES
 void mailHandler(int* current_socket, char buffer[]) {
-<<<<<<< HEAD
-   char* bufcpy = malloc(sizeof(char)*BUF);
+   char* bufcpy = calloc(sizeof(char)*BUF);
    strcpy(bufcpy, buffer);
    char* pch = strtok(bufcpy, "\n");
    
@@ -391,32 +382,6 @@ void mailHandler(int* current_socket, char buffer[]) {
    }
    
    free(bufcpy);
-=======
-    char* bufcpy = calloc(BUF, sizeof(char));
-    strcpy(bufcpy, buffer);
-    char* pch = strtok(bufcpy, "\n");
-
-    //printf("%s\n", pch);
-
-    if (strcmp(pch, "SEND") == 0) {
-        sendMessage(current_socket, buffer);
-    }
-    else if (strcmp(pch, "LIST") == 0) {
-        listMessage(current_socket, buffer);
-    }
-    else if (strcmp(pch, "READ") == 0) {
-        readMessage(current_socket, buffer);
-    }
-    else if (strcmp(pch, "DEL") == 0) {
-        delMessage(current_socket, buffer);
-    }
-    else {
-        perror("command unknown");
-    }
-
-    free(bufcpy);
-
->>>>>>> 50f99ebe0492e7c529f756c0be17e83067682d6b
 }
 
 void loginUser(int* current_socket, char buffer[]){ //ipadress is inet_ntoa(cliaddress.sin_addr)
