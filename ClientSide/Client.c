@@ -114,7 +114,7 @@ int main(int argc, char** argv)
                 --size;
                 buffer[size] = 0;
             }
-            //isQuit = strcmp(buffer, "quit") == 0;
+            isQuit = strcmp(buffer, "quit") == 0;
 
             //////////////////////////////////////////////////////////////////////
             // SEND DATA
