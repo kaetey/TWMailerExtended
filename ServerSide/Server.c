@@ -239,7 +239,6 @@ void* clientCommunication(void* data)
         buffer[size] = '\0';
         printf("Message received: %s\n", buffer); // ignore error
 
-<<<<<<< HEAD
    // closes/frees the descriptor if not already
    if (*current_socket != -1)
    {
@@ -258,7 +257,6 @@ void* clientCommunication(void* data)
    ldap_unbind_ext_s(ldapHandle, NULL, NULL);
 
    return NULL;
-=======
         mailHandler(current_socket, buffer);
 
     } while (strcmp(buffer, "quit") != 0 && !abortRequested);
@@ -278,7 +276,6 @@ void* clientCommunication(void* data)
     }
 
     return NULL;
->>>>>>> 50f99ebe0492e7c529f756c0be17e83067682d6b
 }
 
 void signalHandler(int sig)
