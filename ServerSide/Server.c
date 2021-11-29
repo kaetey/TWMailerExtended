@@ -478,17 +478,35 @@ void sendMessage(int *current_socket, char buffer[])
     //char* sender = strtok(NULL, "\n");
     //char* receiver = strtok(NULL, "\n");
 
+    char sendBuf[BUF] = "Send to ";
+    char recvBuf[BUF] = "Received from ";
+    char* sender = strtok(NULL, "\n");
+    char* receiver = strtok(NULL, "\n");
+
     char senderDir[BUF] = "./";
     strcat(senderDir, DIRECTORY);
     strcat(senderDir, "/");
-    strcat(senderDir, strtok(NULL, "\n"));
+    strcat(senderDir, sender);
 
     char receiverDir[BUF] = "./";
     strcat(receiverDir, DIRECTORY);
     strcat(receiverDir, "/");
-    strcat(receiverDir, strtok(NULL, "\n"));
+    strcat(receiverDir, receiver);
 
     char *subject = strtok(NULL, "\n");
+
+    strtok(buffer, "\n");
+    strtok(NULL, "\n");
+    strtok(NULL, "\n");
+    buffer = strtok(NULL, ".");
+
+    strcat(sendBuf, receiver);
+    strcat(sendBuf, "\n");
+    strcat(sendBuf, buffer);
+
+    strcat(recvBuf, sender);
+    strcat(recvBuf, "\n");
+    strcat(recvBuf, buffer);
 
     char filepath[BUF];
 
