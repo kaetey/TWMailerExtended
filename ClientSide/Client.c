@@ -397,6 +397,9 @@ void getLines(int maxlen, char *prompt, char *target)
         strcat(target, c);
         i++;
     } while (*c != '.' && i < maxlen);
+    do {
+        *c = getchar();
+    } while (c * != '\n');
     free(c);
 }
 
