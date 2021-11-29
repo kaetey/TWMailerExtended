@@ -388,7 +388,7 @@ void delMessage(int create_socket)
 
 void getLines(int maxlen, char *prompt, char *target)
 {
-    char *c = malloc(sizeof(char));
+    char *c = calloc(1, sizeof(char));
     int i = 0;
     printf("%s", prompt);
     do
