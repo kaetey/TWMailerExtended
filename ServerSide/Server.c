@@ -1,3 +1,7 @@
+#define __USE_XOPEN
+#define _GNU_SOURCE
+#define _XOPEN_SOURCE
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -11,6 +15,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <ldap.h>
+#include <time.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -22,35 +27,40 @@ int PORT = 0;
 int abortRequested = 0;
 int create_socket = -1;
 int new_socket = -1;
-char* DIRECTORY;
+char *DIRECTORY;
 LDAP *ldapHandle;
 struct sockaddr_in cliaddress; //global - needed fpr loginUser() aswell
 int loginError = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void* clientCommunication(void* data);
+void *clientCommunication(void *data);
 void signalHandler(int sig);
 
-void mailHandler(int* current_socket, char buffer[]);
-void loginUser(int* current_socket, char buffer[]);
-void sendMessage(int* current_socket, char buffer[]);
-void listMessage(int* current_socket, char buffer[]);
-void readMessage(int* current_socket, char buffer[]);
-void delMessage(int* current_socket, char buffer[]);
+void mailHandler(int *current_socket, char buffer[]);
+void loginUser(int *current_socket, char buffer[]);
+void sendMessage(int *current_socket, char buffer[]);
+void listMessage(int *current_socket, char buffer[]);
+void readMessage(int *current_socket, char buffer[]);
+void delMessage(int *current_socket, char buffer[]);
+
+void updateBlackList();
+int checkBlackList(char *userIP);
+void blackListUser(char *userIP);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     PORT = atoi(argv[1]);
     DIRECTORY = argv[2];
     socklen_t addrlen;
     struct sockaddr_in address;
     int reuseValue = 1;
-    
+
     struct stat st = {0};
-    if (stat(DIRECTORY, &st) == -1) {
+    if (stat(DIRECTORY, &st) == -1)
+    {
         mkdir(DIRECTORY, 0777);
     }
 
@@ -76,20 +86,20 @@ int main(int argc, char** argv)
     // SET SOCKET OPTIONS
     // socket, level, optname, optvalue, optlen
     if (setsockopt(create_socket,
-        SOL_SOCKET,
-        SO_REUSEADDR,
-        &reuseValue,
-        sizeof(reuseValue)) == -1)
+                   SOL_SOCKET,
+                   SO_REUSEADDR,
+                   &reuseValue,
+                   sizeof(reuseValue)) == -1)
     {
         perror("set socket options - reuseAddr");
         return EXIT_FAILURE;
     }
 
     if (setsockopt(create_socket,
-        SOL_SOCKET,
-        SO_REUSEPORT,
-        &reuseValue,
-        sizeof(reuseValue)) == -1)
+                   SOL_SOCKET,
+                   SO_REUSEPORT,
+                   &reuseValue,
+                   sizeof(reuseValue)) == -1)
     {
         perror("set socket options - reusePort");
         return EXIT_FAILURE;
@@ -105,7 +115,7 @@ int main(int argc, char** argv)
 
     ////////////////////////////////////////////////////////////////////////////
     // ASSIGN AN ADDRESS WITH PORT TO SOCKET
-    if (bind(create_socket, (struct sockaddr*)&address, sizeof(address)) == -1)
+    if (bind(create_socket, (struct sockaddr *)&address, sizeof(address)) == -1)
     {
         perror("bind error");
         return EXIT_FAILURE;
@@ -119,7 +129,7 @@ int main(int argc, char** argv)
         perror("listen error");
         return EXIT_FAILURE;
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////
     // LDAP config
     // anonymous bind with user and pw empty
@@ -163,7 +173,7 @@ int main(int argc, char** argv)
         ldap_unbind_ext_s(ldapHandle, NULL, NULL);
         return EXIT_FAILURE;
     }
-    
+
     while (!abortRequested)
     {
         /////////////////////////////////////////////////////////////////////////
@@ -175,8 +185,8 @@ int main(int argc, char** argv)
         // blocking, might have an accept-error on ctrl+c
         addrlen = sizeof(struct sockaddr_in);
         if ((new_socket = accept(create_socket,
-            (struct sockaddr*)&cliaddress,
-            &addrlen)) == -1)
+                                 (struct sockaddr *)&cliaddress,
+                                 &addrlen)) == -1)
         {
             if (abortRequested)
             {
@@ -193,11 +203,11 @@ int main(int argc, char** argv)
         // START CLIENT
         // ignore printf error handling
         printf("Client connected from %s:%d...\n",
-                inet_ntoa(cliaddress.sin_addr),
-                ntohs(cliaddress.sin_port));
+               inet_ntoa(cliaddress.sin_addr),
+               ntohs(cliaddress.sin_port));
         clientCommunication(&new_socket); // returnValue can be ignored
         new_socket = -1;
-      }
+    }
 
     // frees the descriptor
     if (create_socket != -1)
@@ -217,11 +227,11 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
 }
 
-void* clientCommunication(void* data)
+void *clientCommunication(void *data)
 {
     char buffer[BUF];
     int size;
-    int* current_socket = (int*)data;
+    int *current_socket = (int *)data;
 
     ////////////////////////////////////////////////////////////////////////////
     // SEND welcome message
@@ -333,52 +343,76 @@ void signalHandler(int sig)
 
 ////////////////////////////////////////////////////////////////////////////
 // HANDLES CLIENT MESSAGES
-void mailHandler(int* current_socket, char buffer[]) {
-   char* bufcpy = calloc(BUF,sizeof(char));
-   strcpy(bufcpy, buffer);
-   char* pch = strtok(bufcpy, "\n");
-   
-   //printf("%s\n", pch);
-   
-   if(strcmp(pch, "LOGIN") == 0){
-      loginUser(current_socket, buffer);
-   } else if(strcmp(pch, "SEND") == 0){
-      sendMessage(current_socket, buffer);
-   } else if (strcmp(pch, "LIST") == 0) {
-      listMessage(current_socket, buffer);
-   } else if (strcmp(pch, "READ") == 0) {
-      readMessage(current_socket, buffer);
-   } else if (strcmp(pch, "DEL") == 0) {
-      delMessage(current_socket, buffer);
-   } else {
-      perror("command unknown");
-   }
-   
-   free(bufcpy);
+void mailHandler(int *current_socket, char buffer[])
+{
+    char *bufcpy = calloc(BUF, sizeof(char));
+    strcpy(bufcpy, buffer);
+    char *pch = strtok(bufcpy, "\n");
+
+    //printf("%s\n", pch);
+
+    if (strcmp(pch, "LOGIN") == 0)
+    {
+        loginUser(current_socket, buffer);
+    }
+    else if (strcmp(pch, "SEND") == 0)
+    {
+        sendMessage(current_socket, buffer);
+    }
+    else if (strcmp(pch, "LIST") == 0)
+    {
+        listMessage(current_socket, buffer);
+    }
+    else if (strcmp(pch, "READ") == 0)
+    {
+        readMessage(current_socket, buffer);
+    }
+    else if (strcmp(pch, "DEL") == 0)
+    {
+        delMessage(current_socket, buffer);
+    }
+    else
+    {
+        perror("command unknown");
+    }
+
+    free(bufcpy);
 }
 
-void loginUser(int* current_socket, char buffer[]){
-   ////////////////////////////////////////////////////////////////////////////
-   // bind credentials
+void loginUser(int *current_socket, char buffer[])
+{
+    ////////////////////////////////////////////////////////////////////////////
+    // bind credentials
+    //check if user is blacklisted
+    char *userIP = inet_ntoa(cliaddress.sin_addr);
+    updateBlackList();
+    int result = checkBlackList(userIP);
+    printf("\nresult: %d", result);
+    if (result)
+    {
+        printf("\nIch bin hier 5");
+        if (send(*current_socket, "Please try again later.", 24, 0) == -1)
+        {
+            perror("Sending Error \n");
+        }
+        return;
+    }
 
-   //check if ipadress is in blacklist
+    char rawLdapUser[128];
+    char ldapBindUser[256];
+    char ldapBindPassword[256];
+    strcpy(rawLdapUser, strtok(NULL, "\n"));
+    sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
+    strcpy(ldapBindPassword, strtok(NULL, "\n"));
 
-   strtok(buffer, "\n");
-   char rawLdapUser[128];
-   char ldapBindUser[256];
-   char ldapBindPassword[256];
-   strcpy(rawLdapUser, strtok(buffer, "\n"));
-   sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
-   strcpy(ldapBindPassword, strtok(buffer, "\n"));
+    //printf("rawLdapUser: %s", rawLdapUser);
+    //printf("ldapBindUser: %s", ldapBindUser);
+    //printf("ldapBindPassword: %s", ldapBindPassword);
 
-   printf("rawLdapUser: %s", rawLdapUser);
-   printf("ldapBindUser: %s", ldapBindUser);
-   printf("ldapBindPassword: %s", ldapBindPassword);
-
-   BerValue bindCredentials;
-   bindCredentials.bv_val = (char *)ldapBindPassword;
-   bindCredentials.bv_len = strlen(ldapBindPassword);
-   BerValue *servercredp; // server's credentials
+    BerValue bindCredentials;
+    bindCredentials.bv_val = (char *)ldapBindPassword;
+    bindCredentials.bv_len = strlen(ldapBindPassword);
+    BerValue *servercredp; // server's credentials
     int rc = ldap_sasl_bind_s(
         ldapHandle,
         ldapBindUser,
@@ -391,33 +425,37 @@ void loginUser(int* current_socket, char buffer[]){
     {
         loginError++;
         fprintf(stderr, "LDAP bind error: %s\n", ldap_err2string(rc));
-        if(loginError == 3){
+        if (loginError == 3)
+        {
             //add user to blacklist
+            blackListUser(userIP);
             printf("\nIP: %s added to the blacklist.", inet_ntoa(cliaddress.sin_addr));
-            if (send(*current_socket, "Invalid Credential. Please try again in 1 minute.", 50, 0) == -1)
+            if (send(*current_socket, "Invalid Credential. Please try again later.", 44, 0) == -1)
             {
                 perror("Send Error \n");
             }
             loginError = 0;
-        } else{
+        }
+        else
+        {
             if (send(*current_socket, "Invalid Credential", 19, 0) == -1)
             {
                 perror("Send Error \n");
             }
         }
-   }
-   
-   if (send(*current_socket, "OK", 3, 0) == -1)
-   {
-      perror("send failed");
-   }
+    }
+
+    if (send(*current_socket, "OK", 3, 0) == -1)
+    {
+        perror("send failed");
+    }
 }
 
-void sendMessage(int* current_socket, char buffer[]) {
+void sendMessage(int *current_socket, char buffer[])
+{
 
     //char* sender = strtok(NULL, "\n");
     //char* receiver = strtok(NULL, "\n");
-
 
     char senderDir[BUF] = "./";
     strcat(senderDir, DIRECTORY);
@@ -429,16 +467,16 @@ void sendMessage(int* current_socket, char buffer[]) {
     strcat(receiverDir, "/");
     strcat(receiverDir, strtok(NULL, "\n"));
 
-    char* subject = strtok(NULL, "\n");
+    char *subject = strtok(NULL, "\n");
 
     char filepath[BUF];
 
-    struct stat st = { 0 };
+    struct stat st = {0};
 
     int file;
 
-
-    if (stat(senderDir, &st) == -1) {
+    if (stat(senderDir, &st) == -1)
+    {
         mkdir(senderDir, 0777);
     }
 
@@ -450,7 +488,8 @@ void sendMessage(int* current_socket, char buffer[]) {
     file = open(filepath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
     write(file, buffer, strlen(buffer));
 
-    if (stat(receiverDir, &st) == -1) {
+    if (stat(receiverDir, &st) == -1)
+    {
         mkdir(receiverDir, 0777);
     }
 
@@ -466,15 +505,15 @@ void sendMessage(int* current_socket, char buffer[]) {
     {
         perror("send answer failed");
     }
-
 }
 
-void listMessage(int* current_socket, char buffer[]) {
-    char* message = calloc(BUF, sizeof(char));
+void listMessage(int *current_socket, char buffer[])
+{
+    char *message = calloc(BUF, sizeof(char));
     char temp[BUF];
-    char* path = calloc(BUF, sizeof(char));
-    DIR* dirp;
-    struct dirent* entry;
+    char *path = calloc(BUF, sizeof(char));
+    DIR *dirp;
+    struct dirent *entry;
     int fileCount = 0;
     char fileCountString[3];
 
@@ -485,8 +524,10 @@ void listMessage(int* current_socket, char buffer[]) {
     strcat(path, strtok(NULL, "\n"));
 
     dirp = opendir(path);
-    while ((entry = readdir(dirp)) != NULL) {
-        if (entry->d_type == DT_REG) {
+    while ((entry = readdir(dirp)) != NULL)
+    {
+        if (entry->d_type == DT_REG)
+        {
             strcat(temp, entry->d_name);
             strcat(temp, "\n");
             fileCount++;
@@ -500,18 +541,21 @@ void listMessage(int* current_socket, char buffer[]) {
     strcat(message, "\n");
     strcat(message, temp);
 
-    if (send(*current_socket, message, strlen(message), 0) == -1) {
+    if (send(*current_socket, message, strlen(message), 0) == -1)
+    {
         perror("send answer failed");
     }
 
     free(message);
     free(path);
 }
-void readMessage(int* current_socket, char buffer[]) {
-    char* message = calloc(BUF, sizeof(char));
-    char* path = calloc(BUF, sizeof(char));
-    DIR* dirp;
-    struct dirent* entry;
+
+void readMessage(int *current_socket, char buffer[])
+{
+    char *message = calloc(BUF, sizeof(char));
+    char *path = calloc(BUF, sizeof(char));
+    DIR *dirp;
+    struct dirent *entry;
     int file;
     int filesize;
     int fileCount = 1;
@@ -526,9 +570,12 @@ void readMessage(int* current_socket, char buffer[]) {
     targetFile = atoi(strtok(NULL, "\n"));
 
     dirp = opendir(path);
-    while ((entry = readdir(dirp)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            if (fileCount == targetFile) {
+    while ((entry = readdir(dirp)) != NULL)
+    {
+        if (entry->d_type == DT_REG)
+        {
+            if (fileCount == targetFile)
+            {
                 strcat(path, "/");
                 strcat(path, entry->d_name);
                 file = open(path, O_RDONLY);
@@ -541,17 +588,20 @@ void readMessage(int* current_socket, char buffer[]) {
     }
     closedir(dirp);
 
-    if (send(*current_socket, message, strlen(message), 0) == -1) {
+    if (send(*current_socket, message, strlen(message), 0) == -1)
+    {
         perror("send answer failed");
     }
 
     free(message);
     free(path);
 }
-void delMessage(int* current_socket, char buffer[]) {
-    char* path = calloc(BUF, sizeof(char));
-    DIR* dirp;
-    struct dirent* entry;
+
+void delMessage(int *current_socket, char buffer[])
+{
+    char *path = calloc(BUF, sizeof(char));
+    DIR *dirp;
+    struct dirent *entry;
     int fileCount = 1;
     int targetFile = 0;
 
@@ -562,9 +612,12 @@ void delMessage(int* current_socket, char buffer[]) {
     targetFile = atoi(strtok(NULL, "\n"));
 
     dirp = opendir(path);
-    while ((entry = readdir(dirp)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            if (fileCount == targetFile) {
+    while ((entry = readdir(dirp)) != NULL)
+    {
+        if (entry->d_type == DT_REG)
+        {
+            if (fileCount == targetFile)
+            {
                 strcat(path, "/");
                 strcat(path, entry->d_name);
                 remove(path);
@@ -574,8 +627,95 @@ void delMessage(int* current_socket, char buffer[]) {
     }
     closedir(dirp);
 
-    if (send(*current_socket, "OK", 3, 0) == -1) {
+    if (send(*current_socket, "OK", 3, 0) == -1)
+    {
         perror("send answer failed");
     }
     free(path);
+}
+
+void updateBlackList()
+{
+    char *timestamp = calloc(BUF, sizeof(char));
+    char path[BUF] = "./BLACKLIST/";
+    DIR *blDir = opendir(path);
+    struct dirent *entry = NULL;
+    struct stat st;
+    if (blDir == NULL)
+    {
+        perror("Unable to read directory");
+    }
+    while ((entry = readdir(blDir)) != NULL)
+    {
+        if (entry->d_type == DT_REG)
+        {
+            strcat(path, entry->d_name);
+            int file = open(path, O_RDONLY);
+            stat(path, &st);
+            int filesize = st.st_size;
+            read(file, timestamp, filesize);
+
+            // convert the timestamp from char* to struct tm
+            struct tm fileTime;
+            memset(&fileTime, 0, sizeof(struct tm));
+
+            strptime(timestamp, "%a %b %d %H:%M:%S %Y", &fileTime);
+
+            // convert the timestamp from struct tm to time_t
+            time_t timeFile;
+            timeFile = mktime(&fileTime);
+
+            time_t now = time(NULL);
+            if (difftime(now, timeFile) > 60)
+            { //check if 1 minute has passed
+                if (remove(path) == 0)
+                    printf("Deleted successfully");
+                else
+                    printf("Unable to delete the file");
+            }
+        }
+        strcpy(path, "./BLACKLIST/");
+    }
+    closedir(blDir);
+    free(timestamp);
+}
+
+int checkBlackList(char *userIP)
+{
+    char* filename = userIP;
+    strcat(filename, ".txt");
+    int result = 0;
+    char path[BUF] = "./BLACKLIST/";
+    DIR *blDir = opendir(path);
+    struct dirent *entry;
+    if (blDir == NULL)
+    {
+        perror("Unable to read directory");
+    }
+    while ((entry = readdir(blDir)) != NULL)
+    {
+        if (entry->d_type == DT_REG)
+        {
+            if (strcmp(entry->d_name, filename) == 0)
+            {
+                result = 1;
+            }
+        }
+    }
+    closedir(blDir);
+    return result;
+}
+
+void blackListUser(char *userIP)
+{
+    char path[BUF] = "./BLACKLIST/";
+    strcat(path, userIP);
+
+    time_t now;
+    time(&now);
+    struct tm *timeinfo = localtime(&now);
+    char *timestamp = asctime(timeinfo);
+
+    int file = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
+    write(file, timestamp, strlen(timestamp));
 }

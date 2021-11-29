@@ -14,20 +14,21 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 int PORT = 0;
+int loggedIn = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void loginUser();
-void sendMessage(int create_socket);
+char *loginUser();
+void sendMessage(int create_socket, char *username);
 void listMessage(int create_socket);
 void readMessage(int create_socket);
 void delMessage(int create_socket);
-void getLines(int maxlen, char* prompt, char* target);
-void getInput(int maxlen, char* prompt, char* target);
+void getLines(int maxlen, char *prompt, char *target);
+void getInput(int maxlen, char *prompt, char *target);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 
     PORT = atoi(argv[2]);
@@ -64,8 +65,8 @@ int main(int argc, char** argv)
     ////////////////////////////////////////////////////////////////////////////
     // CREATE A CONNECTION
     if (connect(create_socket,
-        (struct sockaddr*)&address,
-        sizeof(address)) == -1)
+                (struct sockaddr *)&address,
+                sizeof(address)) == -1)
     {
         perror("Connect error - no server available");
         return EXIT_FAILURE;
@@ -73,7 +74,7 @@ int main(int argc, char** argv)
 
     // ignore return value of printf
     printf("Connection with server (%s) established\n",
-        inet_ntoa(address.sin_addr));
+           inet_ntoa(address.sin_addr));
 
     ////////////////////////////////////////////////////////////////////////////
     // RECEIVE DATA
@@ -92,15 +93,23 @@ int main(int argc, char** argv)
         printf("%s", buffer); // ignore error
     }
 
-	printf("LOGIN: authenticate user.\n"
-        //"SEND: send a message from client to server.\n"
-	    //"LIST: list all messages from a specific user.\n"
-		//"READ: read a specific message from a user.\n"
-		//"DEL: delete a specific message from a user.\n"
-		"QUIT: disconnect.\n");
-
-    do{
-
+    int canReceive = 1;
+    char *username = NULL;
+    do
+    {
+        if (loggedIn)
+        {
+            printf("SEND: send a message from client to server.\n"
+                   "LIST: list all messages from a specific user.\n"
+                   "READ: read a specific message from a user.\n"
+                   "DEL: delete a specific message from a user.\n"
+                   "QUIT: disconnect.\n");
+        }
+        else
+        {
+            printf("LOGIN: authenticate user.\n"
+                   "QUIT: disconnect.\n");
+        }
         printf("Enter command: ");
         if (fgets(buffer, BUF, stdin) != NULL)
         {
@@ -122,46 +131,73 @@ int main(int argc, char** argv)
             // SEND DATA
             // send will fail if connection is closed, but does not set
             // the error of send, but still the count of bytes sent
-            
-            if(strcmp(buffer, "LOGIN") == 0){
-                loginUser(create_socket);
-            } else if (strcmp(buffer, "SEND") == 0) {
-                sendMessage(create_socket);
-            } else if (strcmp(buffer, "LIST") == 0) {
+
+            if (strcmp(buffer, "LOGIN") == 0)
+            {
+                username = loginUser(create_socket);
+                canReceive = 0;
+            }
+            else if (strcmp(buffer, "SEND") == 0)
+            {
+                sendMessage(create_socket, username);
+            }
+            else if (strcmp(buffer, "LIST") == 0)
+            {
                 listMessage(create_socket);
-            } else if (strcmp(buffer, "READ") == 0) {
+            }
+            else if (strcmp(buffer, "READ") == 0)
+            {
                 readMessage(create_socket);
-            } else if (strcmp(buffer, "DEL") == 0) {
+            }
+            else if (strcmp(buffer, "DEL") == 0)
+            {
                 delMessage(create_socket);
-            } else if (strcmp(buffer, "QUIT") == 0) {
+            }
+            else if (strcmp(buffer, "QUIT") == 0)
+            {
                 //isQuit = 1;
                 close(create_socket);
                 exit(EXIT_SUCCESS);
-            } else {
-                printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
+            }
+            else
+            {
+                if (loggedIn)
+                {
+                    printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
+                }
+                else
+                {
+
+                    printf("Please enter a valid command:\nLOGIN--QUIT\n");
+                }
                 continue;
             }
 
             //////////////////////////////////////////////////////////////////////
-            size = recv(create_socket, buffer, BUF - 1, 0);
-            if (size == -1)
+            if (canReceive)
             {
-                perror("recv error");
-                break;
-            }
-            else if (size == 0)
-            {
-                printf("Server closed remote socket\n"); // ignore error
-                break;
-            }
-            else
-            {
-                buffer[size] = '\0';
-                printf("<< %s\n", buffer); // ignore error
-                buffer[0] = '\0';
+                size = recv(create_socket, buffer, BUF - 1, 0);
+                if (size == -1)
+                {
+                    perror("recv error");
+                    break;
+                }
+                else if (size == 0)
+                {
+                    printf("Server closed remote socket\n"); // ignore error
+                    break;
+                }
+                else
+                {
+                    buffer[size] = '\0';
+                    printf("<< %s\n", buffer); // ignore error
+                    buffer[0] = '\0';
+                }
             }
         }
     } while (!isQuit);
+
+    free(username);
 
     ////////////////////////////////////////////////////////////////////////////
     // CLOSES THE DESCRIPTOR
@@ -182,43 +218,67 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
 }
 
-void loginUser(int create_socket){
-   char* message = calloc(BUF, sizeof(char));
-   char* username = calloc(10, sizeof(char));
-   char* password = calloc(30, sizeof(char));
+char *loginUser(int create_socket)
+{
+    char *message = calloc(BUF, sizeof(char));
+    char *username = calloc(10, sizeof(char));
+    char *password = calloc(30, sizeof(char));
+    char buffer[BUF];
+    getInput(10, "Username: ", username);
+    getInput(30, "Password: ", password);
 
-   getInput(10, "Username: ", username);
-   getInput(30, "Password: ", password);
+    strcat(message, "LOGIN\n");
+    strcat(message, username);
+    strcat(message, "\n");
+    strcat(message, password);
+    strcat(message, "\n\0");
 
-   strcat(message, "LOGIN\n");
-   strcat(message, username);
-   strcat(message, "\n");
-   strcat(message, password);
-   strcat(message, "\n\0");
-
-   if(send(create_socket, message, strlen(message), 0) == -1) {
-      perror("LOGIN failed to send");
-      exit(EXIT_FAILURE);
-   } 
-   free(username);
-   free(password);
-   free(message);
+    if (send(create_socket, message, strlen(message), 0) == -1)
+    {
+        perror("LOGIN failed to send");
+        exit(EXIT_FAILURE);
+    }
+    int size = recv(create_socket, buffer, BUF - 1, 0);
+    if (size == -1)
+    {
+        perror("recv error");
+    }
+    else if (size == 0)
+    {
+        printf("Server closed remote socket\n"); // ignore error
+    }
+    else
+    {
+        buffer[size] = '\0';
+        printf("<< %s\n", buffer); // ignore error
+        if (strncmp(buffer, "OK", 2) == 0)
+        {
+            printf("<< Logged in\n"); // ignore error
+            loggedIn = 1;
+            free(password);
+            free(message);
+            return username;
+        }
+    }
+    free(username);
+    free(password);
+    free(message);
+    return NULL;
 }
 
-void sendMessage(int create_socket) {
-    char* message = calloc(BUF, sizeof(char));
-    char* sender = calloc(10, sizeof(char));
-    char* receiver = calloc(10, sizeof(char));
-    char* subject = calloc(81, sizeof(char));
-    char* content = calloc(BUF, sizeof(char));
+void sendMessage(int create_socket, char *username)
+{
+    char *message = calloc(BUF, sizeof(char));
+    char *receiver = calloc(10, sizeof(char));
+    char *subject = calloc(81, sizeof(char));
+    char *content = calloc(BUF, sizeof(char));
 
-    getInput(10, "Enter the username of the sender: ", sender);
     getInput(10, "Enter the username of the receiver: ", receiver);
     getInput(81, "Enter the subject of the message: ", subject);
     getLines(BUF, "Enter the content of the message: ", content);
 
     strcat(message, "SEND\n");
-    strcat(message, sender);
+    strcat(message, username);
     strcat(message, "\n");
     strcat(message, receiver);
     strcat(message, "\n");
@@ -228,20 +288,21 @@ void sendMessage(int create_socket) {
     strcat(message, "\n\0");
 
     printf("%s\n", message);
-    if (send(create_socket, message, strlen(message), 0) == -1) {
+    if (send(create_socket, message, strlen(message), 0) == -1)
+    {
         perror("SEND failed to send");
         exit(EXIT_FAILURE);
     }
-    free(sender);
     free(receiver);
     free(subject);
     free(content);
     free(message);
 }
 
-void listMessage(int create_socket) {
-    char* message = calloc(19, sizeof(char));
-    char* username = calloc(10, sizeof(char));
+void listMessage(int create_socket)
+{
+    char *message = calloc(19, sizeof(char));
+    char *username = calloc(10, sizeof(char));
 
     getInput(10, "From which user do you want to list all messages? Enter the username: ", username);
 
@@ -249,20 +310,21 @@ void listMessage(int create_socket) {
     strcat(message, username);
     strcat(message, "\n");
 
-    if (send(create_socket, message, strlen(message), 0) == -1) {
+    if (send(create_socket, message, strlen(message), 0) == -1)
+    {
         perror("LIST failed to send");
         exit(EXIT_FAILURE);
     }
 
     free(username);
     free(message);
-
 }
 
-void readMessage(int create_socket) {
-    char* message = calloc(19, sizeof(char));
-    char* username = calloc(10, sizeof(char));
-    char* msgNumber = calloc(4, sizeof(char));
+void readMessage(int create_socket)
+{
+    char *message = calloc(19, sizeof(char));
+    char *username = calloc(10, sizeof(char));
+    char *msgNumber = calloc(4, sizeof(char));
 
     getInput(10, "From which user do you want to read a message? Enter the username: ", username);
     getInput(4, "Which Message do you want to read? Enter the message number: ", msgNumber);
@@ -273,7 +335,8 @@ void readMessage(int create_socket) {
     strcat(message, msgNumber);
     strcat(message, "\n");
 
-    if (send(create_socket, message, strlen(message), 0) == -1) {
+    if (send(create_socket, message, strlen(message), 0) == -1)
+    {
         perror("READ failed to send");
         exit(EXIT_FAILURE);
     }
@@ -282,10 +345,11 @@ void readMessage(int create_socket) {
     free(message);
 }
 
-void delMessage(int create_socket) {
-    char* message = calloc(19, sizeof(char));
-    char* username = calloc(10, sizeof(char));
-    char* msgNumber = calloc(4, sizeof(char));
+void delMessage(int create_socket)
+{
+    char *message = calloc(19, sizeof(char));
+    char *username = calloc(10, sizeof(char));
+    char *msgNumber = calloc(4, sizeof(char));
 
     getInput(10, "From which user do you want to delete a message? Enter the username: ", username);
     getInput(4, "Which Message do you want to delete? Enter the message number: ", msgNumber);
@@ -296,21 +360,23 @@ void delMessage(int create_socket) {
     strcat(message, msgNumber);
     strcat(message, "\n");
 
-    if (send(create_socket, message, strlen(message), 0) == -1) {
+    if (send(create_socket, message, strlen(message), 0) == -1)
+    {
         perror("DEL failed to send");
         exit(EXIT_FAILURE);
     }
     free(username);
     free(msgNumber);
     free(message);
-
 }
 
-void getLines(int maxlen, char* prompt, char* target) {
-    char* c = malloc(sizeof(char));
+void getLines(int maxlen, char *prompt, char *target)
+{
+    char *c = malloc(sizeof(char));
     int i = 0;
     printf("%s", prompt);
-    do {
+    do
+    {
         *c = getchar();
         strcat(target, c);
         i++;
@@ -318,23 +384,27 @@ void getLines(int maxlen, char* prompt, char* target) {
     free(c);
 }
 
-void getInput(int maxlen, char* prompt, char* target) {
+void getInput(int maxlen, char *prompt, char *target)
+{
 
     printf("%s", prompt);
 
-    if (fgets(target, maxlen, stdin) != NULL) {
+    if (fgets(target, maxlen, stdin) != NULL)
+    {
         int size = strlen(target);
-        if (target[size - 2] == '\r' && target[size - 1] == '\n') {
+        if (target[size - 2] == '\r' && target[size - 1] == '\n')
+        {
             size -= 2;
             target[size] = 0;
         }
-        else if (target[size - 1] == '\n') {
+        else if (target[size - 1] == '\n')
+        {
             --size;
             target[size] = 0;
         }
     }
-    else {
+    else
+    {
         exit(EXIT_FAILURE);
     }
 }
-
