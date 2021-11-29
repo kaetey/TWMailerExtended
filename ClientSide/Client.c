@@ -30,7 +30,11 @@ void getInput(int maxlen, char *prompt, char *target);
 
 int main(int argc, char **argv)
 {
-
+    if (argc < 3 || atoi(argv[2]) == 0)
+    {
+        fprintf(stderr, "\nUsage: ./Client <IPAdresse> <port>\n");
+        return EXIT_FAILURE;
+    }
     PORT = atoi(argv[2]);
     int create_socket;
     char buffer[BUF];
@@ -131,46 +135,54 @@ int main(int argc, char **argv)
             // SEND DATA
             // send will fail if connection is closed, but does not set
             // the error of send, but still the count of bytes sent
-
-            if (strcmp(buffer, "LOGIN") == 0)
+            if (loggedIn)
             {
-                username = loginUser(create_socket);
-                canReceive = 0;
-            }
-            else if (strcmp(buffer, "SEND") == 0)
-            {
-                sendMessage(create_socket, username);
-            }
-            else if (strcmp(buffer, "LIST") == 0)
-            {
-                listMessage(create_socket);
-            }
-            else if (strcmp(buffer, "READ") == 0)
-            {
-                readMessage(create_socket);
-            }
-            else if (strcmp(buffer, "DEL") == 0)
-            {
-                delMessage(create_socket);
-            }
-            else if (strcmp(buffer, "QUIT") == 0)
-            {
-                //isQuit = 1;
-                close(create_socket);
-                exit(EXIT_SUCCESS);
-            }
-            else
-            {
-                if (loggedIn)
+                if (strcmp(buffer, "SEND") == 0)
                 {
-                    printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
+                    sendMessage(create_socket, username);
+                }
+                else if (strcmp(buffer, "LIST") == 0)
+                {
+                    listMessage(create_socket);
+                }
+                else if (strcmp(buffer, "READ") == 0)
+                {
+                    readMessage(create_socket);
+                }
+                else if (strcmp(buffer, "DEL") == 0)
+                {
+                    delMessage(create_socket);
+                }
+                else if (strcmp(buffer, "QUIT") == 0)
+                {
+                    //isQuit = 1;
+                    close(create_socket);
+                    exit(EXIT_SUCCESS);
                 }
                 else
                 {
-
-                    printf("Please enter a valid command:\nLOGIN--QUIT\n");
+                    printf("Please enter a valid command:\nSEND--LIST--READ--DEL--QUIT\n");
+                    continue;
                 }
-                continue;
+            }
+            else
+            {
+                if (strcmp(buffer, "LOGIN") == 0)
+                {
+                    username = loginUser(create_socket);
+                    canReceive = 0;
+                }
+                else if (strcmp(buffer, "QUIT") == 0)
+                {
+                    //isQuit = 1;
+                    close(create_socket);
+                    exit(EXIT_SUCCESS);
+                }
+                else
+                {
+                    printf("Please enter a valid command:\nLOGIN--QUIT\n");
+                    continue;
+                }
             }
 
             //////////////////////////////////////////////////////////////////////
@@ -193,6 +205,10 @@ int main(int argc, char **argv)
                     printf("<< %s\n", buffer); // ignore error
                     buffer[0] = '\0';
                 }
+            }
+            else
+            {
+                canReceive = 1;
             }
         }
     } while (!isQuit);

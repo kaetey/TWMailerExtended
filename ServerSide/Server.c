@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <ldap.h>
 #include <time.h>
+#include <sys/wait.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -52,6 +53,11 @@ void blackListUser(char *userIP);
 
 int main(int argc, char **argv)
 {
+    if (argc < 3 || atoi(argv[1]) == 0)
+    {
+        fprintf(stderr, "\nUsage: ./Server <port> <mail-spool-directoryname>\n");
+        return EXIT_FAILURE;
+    }
     PORT = atoi(argv[1]);
     DIRECTORY = argv[2];
     socklen_t addrlen;
@@ -174,6 +180,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    int childCount = 0;
+    pid_t childPid;
     while (!abortRequested)
     {
         /////////////////////////////////////////////////////////////////////////
@@ -205,25 +213,42 @@ int main(int argc, char **argv)
         printf("Client connected from %s:%d...\n",
                inet_ntoa(cliaddress.sin_addr),
                ntohs(cliaddress.sin_port));
-        clientCommunication(&new_socket); // returnValue can be ignored
-        new_socket = -1;
+        if ((childPid = fork()) == 0)
+        {
+            childCount++;
+            clientCommunication(&new_socket); // returnValue can be ignored
+            new_socket = -1;
+            return EXIT_SUCCESS;
+        }
+        else if (childPid == -1)
+        {
+            perror("fork");
+            return EXIT_FAILURE;
+        }
     }
-
-    // frees the descriptor
-    if (create_socket != -1)
+    if (childPid != 0 && childPid != -1)
     {
-        if (shutdown(create_socket, SHUT_RDWR) == -1)
+        for (int i = 0; i < childCount; i++)
         {
-            perror("shutdown create_socket");
+            //waits for child processes to finish
+            wait(NULL);
         }
-        if (close(create_socket) == -1)
+        // frees the descriptor
+        if (create_socket != -1)
         {
-            perror("close create_socket");
+            if (shutdown(create_socket, SHUT_RDWR) == -1)
+            {
+                perror("shutdown create_socket");
+            }
+            if (close(create_socket) == -1)
+            {
+                perror("close create_socket");
+            }
+            create_socket = -1;
         }
-        create_socket = -1;
-    }
 
-    ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+    }
     return EXIT_SUCCESS;
 }
 
@@ -387,10 +412,8 @@ void loginUser(int *current_socket, char buffer[])
     char *userIP = inet_ntoa(cliaddress.sin_addr);
     updateBlackList();
     int result = checkBlackList(userIP);
-    printf("\nresult: %d", result);
     if (result)
     {
-        printf("\nIch bin hier 5");
         if (send(*current_socket, "Please try again later.", 24, 0) == -1)
         {
             perror("Sending Error \n");
@@ -405,9 +428,9 @@ void loginUser(int *current_socket, char buffer[])
     sprintf(ldapBindUser, "uid=%s,ou=people,dc=technikum-wien,dc=at", rawLdapUser);
     strcpy(ldapBindPassword, strtok(NULL, "\n"));
 
-    //printf("rawLdapUser: %s", rawLdapUser);
-    //printf("ldapBindUser: %s", ldapBindUser);
-    //printf("ldapBindPassword: %s", ldapBindPassword);
+    // printf("rawLdapUser: %s", rawLdapUser);
+    // printf("ldapBindUser: %s", ldapBindUser);
+    // printf("ldapBindPassword: %s", ldapBindPassword);
 
     BerValue bindCredentials;
     bindCredentials.bv_val = (char *)ldapBindPassword;
@@ -540,7 +563,7 @@ void listMessage(int *current_socket, char buffer[])
     strcat(message, fileCountString);
     strcat(message, "\n");
     strcat(message, temp);
-
+    printf("List: %s", message);
     if (send(*current_socket, message, strlen(message), 0) == -1)
     {
         perror("send answer failed");
@@ -682,7 +705,7 @@ void updateBlackList()
 
 int checkBlackList(char *userIP)
 {
-    char* filename = userIP;
+    char *filename = userIP;
     strcat(filename, ".txt");
     int result = 0;
     char path[BUF] = "./BLACKLIST/";
