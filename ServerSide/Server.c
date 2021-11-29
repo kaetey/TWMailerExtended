@@ -525,7 +525,7 @@ void sendMessage(int *current_socket, char buffer[])
     strcat(filepath, ".txt");
 
     file = open(filepath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
-    write(file, buffer, strlen(buffer));
+    write(file, sendBuf, strlen(sendBuf));
 
     if (stat(receiverDir, &st) == -1)
     {
@@ -538,7 +538,7 @@ void sendMessage(int *current_socket, char buffer[])
     strcat(filepath, ".txt");
 
     file = open(filepath, O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
-    write(file, buffer, strlen(buffer));
+    write(file, recvBuf, strlen(recvBuf));
 
     if (send(*current_socket, "OK", 3, 0) == -1)
     {
