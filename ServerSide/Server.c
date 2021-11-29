@@ -502,7 +502,7 @@ void sendMessage(int *current_socket, char buffer[])
         mkdir(senderDir, 0777);
     }
 
-    strcat(filepath, senderDir);
+    strcpy(filepath, senderDir);
     strcat(filepath, "/");
     strcat(filepath, subject);
     strcat(filepath, ".txt");
