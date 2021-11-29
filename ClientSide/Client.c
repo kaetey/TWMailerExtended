@@ -399,7 +399,7 @@ void getLines(int maxlen, char *prompt, char *target)
     } while (*c != '.' && i < maxlen);
     do {
         *c = getchar();
-    } while (c * != '\n');
+    } while (*c != '\n');
     free(c);
 }
 

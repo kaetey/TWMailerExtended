@@ -136,50 +136,6 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // LDAP config
-    // anonymous bind with user and pw empty
-    const char *ldapUri = "ldap://ldap.technikum-wien.at:389";
-    const int ldapVersion = LDAP_VERSION3;
-
-    int rc = 0; // return code
-
-    ////////////////////////////////////////////////////////////////////////////
-    // setup LDAP connection
-    rc = ldap_initialize(&ldapHandle, ldapUri);
-    if (rc != LDAP_SUCCESS)
-    {
-        fprintf(stderr, "ldap_init failed\n");
-        return EXIT_FAILURE;
-    }
-    printf("connected to LDAP server %s\n", ldapUri);
-
-    ////////////////////////////////////////////////////////////////////////////
-    // set verison options
-    rc = ldap_set_option(
-        ldapHandle,
-        LDAP_OPT_PROTOCOL_VERSION, // OPTION
-        &ldapVersion);             // IN-Value
-    if (rc != LDAP_OPT_SUCCESS)
-    {
-        fprintf(stderr, "ldap_set_option(PROTOCOL_VERSION): %s\n", ldap_err2string(rc));
-        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-        return EXIT_FAILURE;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // start connection secure (initialize TLS)
-    rc = ldap_start_tls_s(
-        ldapHandle,
-        NULL,
-        NULL);
-    if (rc != LDAP_SUCCESS)
-    {
-        fprintf(stderr, "ldap_start_tls_s(): %s\n", ldap_err2string(rc));
-        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
-        return EXIT_FAILURE;
-    }
-
     int childCount = 0;
     pid_t childPid;
     while (!abortRequested)
@@ -216,6 +172,49 @@ int main(int argc, char **argv)
         if ((childPid = fork()) == 0)
         {
             childCount++;
+            ////////////////////////////////////////////////////////////////////////////
+            // LDAP config
+            // anonymous bind with user and pw empty
+            const char *ldapUri = "ldap://ldap.technikum-wien.at:389";
+            const int ldapVersion = LDAP_VERSION3;
+
+            int rc = 0; // return code
+
+            ////////////////////////////////////////////////////////////////////////////
+            // setup LDAP connection
+            rc = ldap_initialize(&ldapHandle, ldapUri);
+            if (rc != LDAP_SUCCESS)
+            {
+                fprintf(stderr, "ldap_init failed\n");
+                return EXIT_FAILURE;
+            }
+            printf("connected to LDAP server %s\n", ldapUri);
+
+            ////////////////////////////////////////////////////////////////////////////
+            // set verison options
+            rc = ldap_set_option(
+                ldapHandle,
+                LDAP_OPT_PROTOCOL_VERSION, // OPTION
+                &ldapVersion);             // IN-Value
+            if (rc != LDAP_OPT_SUCCESS)
+            {
+                fprintf(stderr, "ldap_set_option(PROTOCOL_VERSION): %s\n", ldap_err2string(rc));
+                ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+                return EXIT_FAILURE;
+            }
+
+            ////////////////////////////////////////////////////////////////////////////
+            // start connection secure (initialize TLS)
+            rc = ldap_start_tls_s(
+                ldapHandle,
+                NULL,
+                NULL);
+            if (rc != LDAP_SUCCESS)
+            {
+                fprintf(stderr, "ldap_start_tls_s(): %s\n", ldap_err2string(rc));
+                ldap_unbind_ext_s(ldapHandle, NULL, NULL);
+                return EXIT_FAILURE;
+            }
             clientCommunication(&new_socket); // returnValue can be ignored
             new_socket = -1;
             return EXIT_SUCCESS;
