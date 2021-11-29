@@ -217,6 +217,7 @@ int main(int argc, char **argv)
             }
             clientCommunication(&new_socket); // returnValue can be ignored
             new_socket = -1;
+            ldap_unbind_ext_s(ldapHandle, NULL, NULL);
             return EXIT_SUCCESS;
         }
         else if (childPid == -1)
@@ -245,8 +246,6 @@ int main(int argc, char **argv)
             }
             create_socket = -1;
         }
-
-        ldap_unbind_ext_s(ldapHandle, NULL, NULL);
     }
     return EXIT_SUCCESS;
 }
