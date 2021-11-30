@@ -30,7 +30,7 @@ int create_socket = -1;
 int new_socket = -1;
 char *DIRECTORY;
 LDAP *ldapHandle;
-struct sockaddr_in cliaddress; //global - needed fpr loginUser() aswell
+struct sockaddr_in cliaddress; //global - needed for loginUser() aswell
 int loginError = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -450,7 +450,7 @@ void loginUser(int *current_socket, char buffer[])
         {
             //add user to blacklist
             blackListUser(userIP);
-            printf("\nIP: %s added to the blacklist.", inet_ntoa(cliaddress.sin_addr));
+            printf("IP: %s added to the blacklist.\n", inet_ntoa(cliaddress.sin_addr));
             if (send(*current_socket, "Invalid Credential. Please try again later.", 44, 0) == -1)
             {
                 perror("Send Error \n");
